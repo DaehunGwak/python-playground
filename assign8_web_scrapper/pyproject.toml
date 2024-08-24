@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "assign8-web-scrapper"
+version = "0.1.0"
+description = ""
+authors = ["Ordi <rhkrgns56@naver.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests = "2.32.3"
+beautifulsoup4 = "4.12.3"
+dacite = "^1.8.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
