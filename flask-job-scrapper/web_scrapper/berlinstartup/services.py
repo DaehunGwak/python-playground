@@ -8,13 +8,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 
-from web_scrapper.constants import PARSER_NAME
-from web_scrapper.factories import get_search_url
+from web_scrapper.berlinstartup.constants import PARSER_NAME
+from web_scrapper.berlinstartup.factories import get_search_url
 from web_scrapper.models import JobDescription
 from web_scrapper.selenium.driver import chrome_driver
 
 
-def scrap_job_descriptions(query: str) -> Iterator[List[JobDescription]]:
+def scrap_berlin_job_descriptions(query: str) -> Iterator[List[JobDescription]]:
     page = 1
     while True:
         url = get_search_url(query=query, page=page)

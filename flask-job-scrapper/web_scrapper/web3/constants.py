@@ -1,9 +1,9 @@
-REQUEST_BASE_URL = "https://berlinstartupjobs.com"
+WEB3_BASE_URL = "https://web3.career"
 
-REQUEST_HEADERS = {
+WEB3_REQUEST_HEADERS = {
     "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/120.0.0.0 Safari/537.36"
 }
 
-PARSER_NAME = 'html.parser'
+WEB3_PARSER_NAME = 'html.parser'

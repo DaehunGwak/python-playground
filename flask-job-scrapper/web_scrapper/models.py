@@ -1,10 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum
-
-
-class JobApiRequestType(Enum):
-    ENGINEERING = '/engineering'
-    SKILL_AREAS = '/skill-areas'
 
 
 @dataclass(frozen=True)
@@ -13,3 +7,6 @@ class JobDescription:
     title: str
     description: str
     link: str
+
+
+EMPTY_JOB_DESCRIPTION = JobDescription('', '', '', '')

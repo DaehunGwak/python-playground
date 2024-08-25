@@ -59,18 +59,22 @@
             const row = document.createElement("tr");
 
             const company = document.createElement("td");
+            company.setAttribute('class', 'tbody-td-center');
             company.innerText = job.company_name;
             row.appendChild(company);
 
             const jobName = document.createElement("td");
+            jobName.setAttribute('class', 'tbody-td-center');
             jobName.innerText = job.title;
             row.appendChild(jobName);
 
             const description = document.createElement("td");
+            description.setAttribute('class', 'tbody-td-description');
             description.innerText = job.description;
             row.appendChild(description);
 
             const link = document.createElement("td");
+            link.setAttribute('class', 'tbody-td-center');
             const linkA = document.createElement("a")
             linkA.setAttribute("href", job.link);
             linkA.innerText = "link →"
