@@ -3,13 +3,23 @@ from typing import Iterator, List
 
 import requests
 from bs4 import BeautifulSoup, Tag
+from cachetools import cached
 
+from cache.ttl_cache import scrape_ttl_cache
 from web_scrapper.models import JobDescription, EMPTY_JOB_DESCRIPTION
 from web_scrapper.web3.constants import WEB3_REQUEST_HEADERS, WEB3_PARSER_NAME
 from web_scrapper.web3.factories import get_web3_tag_page_url, get_web3_job_detail_link
 
 
-def scrap_web3_job_descriptions(tag: str) -> Iterator[List[JobDescription]]:
+@cached(cache=scrape_ttl_cache)
+def scrap_web3_job_descriptions(tag: str) -> List[JobDescription]:
+    results: List[JobDescription] = []
+    for jobs in _iter_scrap_job_descriptions(tag):
+        results.extend(jobs)
+    return results
+
+
+def _iter_scrap_job_descriptions(tag: str) -> Iterator[List[JobDescription]]:
     page = 1
     before_jobs: List[JobDescription] = [EMPTY_JOB_DESCRIPTION]
     while True:

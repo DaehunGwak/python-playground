@@ -2,19 +2,29 @@ import re
 from typing import List, Iterator
 
 from bs4 import BeautifulSoup, Tag
+from cachetools import cached
 from selenium.common import TimeoutException
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 
+from cache.ttl_cache import scrape_ttl_cache
 from web_scrapper.berlinstartup.constants import PARSER_NAME
 from web_scrapper.berlinstartup.factories import get_search_url
 from web_scrapper.models import JobDescription
 from web_scrapper.selenium.driver import chrome_driver
 
 
-def scrap_berlin_job_descriptions(query: str) -> Iterator[List[JobDescription]]:
+@cached(cache=scrape_ttl_cache)
+def scrap_berlin_job_descriptions(query: str) -> List[JobDescription]:
+    results: List[JobDescription] = []
+    for jobs in _iter_scrap_job_descriptions(query):
+        results.extend(jobs)
+    return results
+
+
+def _iter_scrap_job_descriptions(query: str) -> Iterator[List[JobDescription]]:
     page = 1
     while True:
         url = get_search_url(query=query, page=page)
