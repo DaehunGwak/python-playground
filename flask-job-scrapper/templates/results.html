@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Search: Simple Jobs</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style-results.css') }}">
+</head>
+<body>
+<header class="flex-center">
+    <h1>Jobs: Results</h1>
+    <form action="/search" method="get">
+        <label>
+            <input id="form-search" type="search" name="query" value={{query}} placeholder="Search about jobs..."/>
+        </label>
+    </form>
+</header>
+<main>
+    <div id="main-loading">
+        Loading...
+    </div>
+    <div id="main-articles" hidden="hidden">
+        <table>
+            <thead>
+            <tr>
+                <th>Company</th>
+                <th>Job</th>
+                <th>Description</th>
+                <th>Link</th>
+            </tr>
+            </thead>
+            <tbody id="main-articles-tbody">
+            </tbody>
+        </table>
+    </div>
+    <div id="main-pages" hidden="hidden">
+        Pages
+    </div>
+</main>
+<script>
+    fetch(`/api/search?query={{query}}`)
+        .then(async (value) => {
+            const json = await value.json();
+            const results = json.results;
+
+            const articlesBodyElement = document.getElementById("main-articles-tbody");
+            articlesBodyElement.append(...createRows(results));
+
+            const articlesElement = document.getElementById("main-articles");
+            articlesElement.hidden = false;
+            document.getElementById("main-loading").style.display = "none";
+        });
+
+    function createRows(jobs) {
+        return jobs.map(job => {
+            const row = document.createElement("tr");
+
+            const company = document.createElement("td");
+            company.setAttribute('class', 'tbody-td-center');
+            company.innerText = job.company_name;
+            row.appendChild(company);
+
+            const jobName = document.createElement("td");
+            jobName.setAttribute('class', 'tbody-td-center');
+            jobName.innerText = job.title;
+            row.appendChild(jobName);
+
+            const description = document.createElement("td");
+            description.setAttribute('class', 'tbody-td-description');
+            description.innerText = job.description;
+            row.appendChild(description);
+
+            const link = document.createElement("td");
+            link.setAttribute('class', 'tbody-td-center');
+            const linkA = document.createElement("a")
+            linkA.setAttribute("href", job.link);
+            linkA.innerText = "link →"
+            link.appendChild(linkA)
+            row.appendChild(link);
+
+            return row;
+        });
+    }
+</script>
+</body>
+</html>

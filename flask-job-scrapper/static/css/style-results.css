@@ -1,0 +1,43 @@
+#main-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 20px;
+}
+
+table {
+    width: 90%;
+    border-collapse: collapse;
+    border: 1px solid;
+    margin: 20px auto;
+}
+
+thead th:nth-child(1) {
+    width: 15%;
+}
+
+thead th:nth-child(2) {
+    width: 25%;
+}
+
+thead th:nth-child(3) {
+    width: 40%;
+}
+
+thead th:nth-child(4) {
+    width: 10%;
+}
+
+th,
+td {
+    border: 1px solid;
+    padding: 16px;
+}
+
+.tbody-td-center {
+    text-align: center;
+}
+
+.tbody-td-description {
+    font-size: 0.9em;
+}
