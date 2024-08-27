@@ -1,0 +1,13 @@
+# ide
+.idea
+.vscode
+
+# os (mac)
+.DS_Store
+
+# python
+__pycache__
+.ipynb_checkpoints
+
+# personal
+api-key.json
