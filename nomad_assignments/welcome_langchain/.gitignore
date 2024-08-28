@@ -11,3 +11,6 @@ __pycache__
 
 # personal
 api-key.json
+
+# file db
+*.db
