@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "streamlit-document-gpt"
+version = "0.1.0"
+description = ""
+authors = ["DaehunGwak <rhkrgns56@naver.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+notebook = "^7.2.1"
+langchain = "^0.2.14"
+langchain-openai = "^0.1.22"
+langchain-community = "^0.2.12"
+tiktoken = "^0.7.0"
+chromadb = "^0.5.5"
+streamlit = "^1.38.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
