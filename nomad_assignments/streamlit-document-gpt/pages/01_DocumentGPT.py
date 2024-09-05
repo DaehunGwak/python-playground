@@ -1,15 +1,18 @@
 import os
 from datetime import timedelta
+from typing import Optional
 
 import streamlit as st
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.storage import LocalFileStore
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_text_splitters import CharacterTextSplitter
+from streamlit.delta_generator import DeltaGenerator
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 
@@ -69,33 +72,54 @@ def format_docs(docs):
     return "\n\n".join(document.page_content for document in docs)
 
 
+class ChatCallbackHandler(BaseCallbackHandler):
+    message = ""
+    message_box: Optional[DeltaGenerator] = None
+
+    def on_llm_start(self, *args, **kwargs):
+        self.message_box = st.empty()
+
+    def on_llm_end(self, *args, **kwargs):
+        save_message_on_session(self.message, "ai")
+
+    def on_llm_new_token(self, token, *args, **kwargs):
+        self.message += token
+        self.message_box.markdown(self.message)
+
+
 # init ###
 # states
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
 # gpts
-llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
+llm = ChatOpenAI(
+    model="gpt-3.5-turbo",
+    temperature=0.1,
+    streaming=True,
+    callbacks=[
+        ChatCallbackHandler(),
+    ]
+)
 prompt = ChatPromptTemplate.from_messages([
     ('system', "You are a helpful assistant. Answer questions using only the following context. If you don't know the "
                "answer just say you don't know, don't make it up:\n\n{context}"),
     ('human', '{question}')
 ])
 
+
 # views ###
 st.set_page_config(
     page_title="DocumentGPT",
     page_icon="📃",
 )
-
 st.title("DocumentGPT")
-
 st.markdown("""
-Welcome!
-
-Use this chatbot to ask questions  to an AI about your files
-
-Upload your file on the sidebar.
+---
+### Welcome!
+- Use this chatbot to ask questions  to an AI about your files
+- Upload your file on the sidebar.
+---
 """)
 
 ctx = get_script_run_ctx()
@@ -122,9 +146,8 @@ if file:
             'context': retriever | RunnableLambda(format_docs),
             'question': RunnablePassthrough()
         } | prompt | llm
-        response = chain.invoke(input_message)
+        with st.chat_message("ai"):
+            response = chain.invoke(input_message)
 
-        save_message_on_session(response.content, "ai")
-        paint_message(response.content, "ai")
 else:
     st.session_state["messages"] = []
