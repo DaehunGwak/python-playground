@@ -1,20 +1,24 @@
 import os
+from datetime import timedelta
 
 import streamlit as st
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.storage import LocalFileStore
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_text_splitters import CharacterTextSplitter
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 
-def embed_file(input_file):
+@st.cache_resource(show_spinner="Embedding file...", ttl=timedelta(hours=1))
+def get_retriever_after_embedding(input_file, session_id):
     file_content = input_file.read()
-    file_path = f"./.cache/files/{ctx.session_id}"
+    file_path = f"./.cache/files/{session_id}"
     file_full_path = f"{file_path}/{input_file.name}"
-    embeddings_cache_dir = f'./.cache/embeddings/{ctx.session_id}'
+    embeddings_cache_dir = f'./.cache/embeddings/{session_id}'
 
     if not os.path.exists(file_path):
         os.makedirs(file_path)
@@ -44,20 +48,83 @@ def embed_file(input_file):
     return vectorstore.as_retriever()
 
 
+def save_message_on_session(message, role):
+    st.session_state["messages"].append({
+        "message": message,
+        "role": role,
+    })
+
+
+def paint_message(message, role):
+    with st.chat_message(role):
+        st.markdown(message)
+
+
+def paint_history():
+    for message in st.session_state["messages"]:
+        paint_message(message["message"], message["role"])
+
+
+def format_docs(docs):
+    return "\n\n".join(document.page_content for document in docs)
+
+
+# init ###
+# states
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
+
+# gpts
+llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.1)
+prompt = ChatPromptTemplate.from_messages([
+    ('system', "You are a helpful assistant. Answer questions using only the following context. If you don't know the "
+               "answer just say you don't know, don't make it up:\n\n{context}"),
+    ('human', '{question}')
+])
+
+# views ###
+st.set_page_config(
+    page_title="DocumentGPT",
+    page_icon="📃",
+)
+
 st.title("DocumentGPT")
 
 st.markdown("""
 Welcome!
 
 Use this chatbot to ask questions  to an AI about your files
+
+Upload your file on the sidebar.
 """)
 
 ctx = get_script_run_ctx()
-st.write(f"your session uid: {ctx.session_id}")
 
-file = st.file_uploader("Upload your .txt file", type=['txt'])
+with st.sidebar:
+    st.write(f"your session uid: {ctx.session_id}")
+    file = st.file_uploader("Upload your .txt file", type=['txt'])
+    if st.button("Clear your chat histories"):
+        st.session_state["messages"] = []
 
 if file:
-    retriever = embed_file(file)
-    docs = retriever.invoke("winston")
-    st.write(docs)
+    retriever = get_retriever_after_embedding(file, ctx.session_id)
+
+    if len(st.session_state["messages"]) <= 0:
+        save_message_on_session("i'm ready! Ask away!", "ai")
+    paint_history()
+
+    input_message = st.chat_input("Ask anything about your file")
+    if input_message:
+        save_message_on_session(input_message, "human")
+        paint_message(input_message, "human")
+
+        chain = {
+            'context': retriever | RunnableLambda(format_docs),
+            'question': RunnablePassthrough()
+        } | prompt | llm
+        response = chain.invoke(input_message)
+
+        save_message_on_session(response.content, "ai")
+        paint_message(response.content, "ai")
+else:
+    st.session_state["messages"] = []
