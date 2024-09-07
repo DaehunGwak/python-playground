@@ -1,9 +1,14 @@
+"""
+- model tokens comparison: https://platform.openai.com/docs/models/gpt-4o-mini
+"""
+
 import os
 from datetime import timedelta
 
 import streamlit as st
 from langchain_community.document_loaders import TextLoader
 from langchain_community.retrievers import WikipediaRetriever
+from langchain_openai import ChatOpenAI
 from langchain_text_splitters import CharacterTextSplitter
 from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
 
@@ -20,7 +25,7 @@ def split_files(input_file, session_id):
         target_file.write(file_content.decode("utf-8"))
 
     character_text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
-        model_name="gpt-3.5-turbo",
+        model_name="gpt-4o-mini",
         chunk_size=600,
         chunk_overlap=100,
         separator="\n",
@@ -31,6 +36,11 @@ def split_files(input_file, session_id):
 
 # states
 ctx = get_script_run_ctx()
+docs = None
+llm = ChatOpenAI(
+    model_name="gpt-4o-mini",
+    teperature=0.1,
+)
 
 # views
 st.set_page_config(
@@ -38,9 +48,8 @@ st.set_page_config(
     page_icon="🧐"
 )
 
-st.title("Quiz GPT")
+st.title("🧐 Quiz GPT")
 
-docs = None
 with st.sidebar:
     choice = st.selectbox("Choose what you want to use.", (
         "File", "Wikipedia Article",
@@ -60,3 +69,10 @@ with st.sidebar:
 
 if docs:
     st.write(docs)
+else:
+    st.info("""
+    I will make a quiz from Wikipedia articles of files you upload to test
+    your knowledge and help you study. 
+    
+    Get started by uploading a file or searching on Wikipedia in the sidebar. 🔍
+    """)
