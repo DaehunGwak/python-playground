@@ -47,6 +47,160 @@ llm = ChatOpenAI(
     temperature=0.1,
 )
 
+question_promopt = ChatPromptTemplate.from_messages([
+    ("system", """
+You are a helpful assistant that is role playing as a teacher.
+
+Based ONLY on the following context make 10 questions to test the user's knowledge about the text.
+
+Each question should have 4 answers, three of them must be incorrect and one should be correct.
+
+Use (o) to signal the correct answer.
+
+Question examples:
+
+Question: What is the color of the ocean?
+Answers: Red|Yellow|Green|Blue(o)
+
+Question: What is the capital or Georgia?
+Answers: Baku|Tbilisi(o)|Manila|Beirut
+
+Question: When was Avatar released?
+Answers: 2007|2001|2009(o)|1998
+
+Question: Who was Julius Caesar?
+Answers: A Roman Emperor(o)|Painter|Actor|Model
+
+Your turn!
+
+Context: {context}
+""")
+])
+question_chain = {"context": format_docs} | question_promopt | llm
+
+formatting_prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
+    You are a powerful formatting algorithm.
+
+    You format exam questions into JSON format.
+    Answers with (o) are the correct ones.
+
+    Example Input:
+    Question: What is the color of the ocean?
+    Answers: Red|Yellow|Green|Blue(o)
+
+    Question: What is the capital or Georgia?
+    Answers: Baku|Tbilisi(o)|Manila|Beirut
+
+    Question: When was Avatar released?
+    Answers: 2007|2001|2009(o)|1998
+
+    Question: Who was Julius Caesar?
+    Answers: A Roman Emperor(o)|Painter|Actor|Model
+
+
+    Example Output:
+
+    ```json
+    {{ "questions": [
+            {{
+                "question": "What is the color of the ocean?",
+                "answers": [
+                        {{
+                            "answer": "Red",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Yellow",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Green",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Blue",
+                            "correct": true
+                        }},
+                ]
+            }},
+                        {{
+                "question": "What is the capital or Georgia?",
+                "answers": [
+                        {{
+                            "answer": "Baku",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Tbilisi",
+                            "correct": true
+                        }},
+                        {{
+                            "answer": "Manila",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Beirut",
+                            "correct": false
+                        }},
+                ]
+            }},
+                        {{
+                "question": "When was Avatar released?",
+                "answers": [
+                        {{
+                            "answer": "2007",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "2001",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "2009",
+                            "correct": true
+                        }},
+                        {{
+                            "answer": "1998",
+                            "correct": false
+                        }},
+                ]
+            }},
+            {{
+                "question": "Who was Julius Caesar?",
+                "answers": [
+                        {{
+                            "answer": "A Roman Emperor",
+                            "correct": true
+                        }},
+                        {{
+                            "answer": "Painter",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Actor",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Model",
+                            "correct": false
+                        }},
+                ]
+            }}
+        ]
+     }}
+    ```
+    Your turn!
+    Questions: {context}
+""",
+        )
+    ]
+)
+formatting_chain = formatting_prompt | llm
+
 # views
 st.set_page_config(
     page_title="Quiz GPT",
@@ -72,41 +226,14 @@ with st.sidebar:
                 docs = retriever.get_relevant_documents(topic)
 
 if docs:
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """
-You are a helpful assistant that is role playing as a teacher.
-     
-Based ONLY on the following context make 10 questions to test the user's knowledge about the text.
-
-Each question should have 4 answers, three of them must be incorrect and one should be correct.
-     
-Use (o) to signal the correct answer.
-     
-Question examples:
-     
-Question: What is the color of the ocean?
-Answers: Red|Yellow|Green|Blue(o)
-     
-Question: What is the capital or Georgia?
-Answers: Baku|Tbilisi(o)|Manila|Beirut
-     
-Question: When was Avatar released?
-Answers: 2007|2001|2009(o)|1998
-     
-Question: Who was Julius Caesar?
-Answers: A Roman Emperor(o)|Painter|Actor|Model
-     
-Your turn!
-     
-Context: {context}
-""")
-    ])
-    chain = {"context": format_docs} | prompt | llm
-
     start = st.button("Generate Quiz")
     if start:
-        results = chain.invoke(docs)
-        st.write(results.content.split("\n\n"))
+        questions_response = question_chain.invoke(docs)
+        st.write(questions_response.content)
+        formatting_response = formatting_chain.invoke({
+            "context": questions_response.content
+        })
+        st.write(formatting_response.content)
 else:
     st.info("""
     I will make a quiz from Wikipedia articles of files you upload to test
