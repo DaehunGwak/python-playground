@@ -9,7 +9,7 @@ import streamlit as st
 from langchain_community.document_loaders import TextLoader
 from langchain_community.retrievers import WikipediaRetriever
 from langchain_core.output_parsers import BaseOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import CharacterTextSplitter
 from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
@@ -49,9 +49,57 @@ class JsonOutputParser(BaseOutputParser):
 # states
 ctx = get_script_run_ctx()
 docs = None
+word = None
+
+llm_quiz_func = function = {
+    "name": "create_quiz",
+    "description": "function that takes a list of questions and answers and returns a quiz",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "questions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "question": {
+                            "type": "string",
+                        },
+                        "answers": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "answer": {
+                                        "type": "string",
+                                    },
+                                    "correct": {
+                                        "type": "boolean",
+                                    },
+                                },
+                                "required": ["answer", "correct"],
+                            },
+                        },
+                    },
+                    "required": ["question", "answers"],
+                },
+            }
+        },
+        "required": ["questions"],
+    },
+}
+
 llm = ChatOpenAI(
     model_name="gpt-4o-mini",
     temperature=0.1,
+)
+
+llm_with_func_call = ChatOpenAI(
+    model_name="gpt-4o-mini",
+    temperature=0.1,
+).bind(
+    function_call={"name": "create_quiz"},
+    functions=[llm_quiz_func],
 )
 
 question_promopt = ChatPromptTemplate.from_messages([
@@ -207,7 +255,7 @@ formatting_prompt = ChatPromptTemplate.from_messages(
     ]
 )
 formatting_chain = formatting_prompt | llm
-
+simple_prompt = PromptTemplate.from_template("Make a quiz about {topic}. the maximum number of quiz is 10 (TEN).")
 output_parser = JsonOutputParser()
 
 
@@ -215,6 +263,13 @@ output_parser = JsonOutputParser()
 def run_quiz_chain(_docs, topic):
     chain = {"context": question_chain} | formatting_chain | output_parser
     return chain.invoke(_docs)
+
+
+@st.cache_resource(show_spinner="Making quiz...")
+def run_quiz_simple_chain(word):
+    chain = simple_prompt | llm_with_func_call
+    result = chain.invoke({"topic": word})
+    return json.loads(result.additional_kwargs["function_call"]["arguments"])
 
 
 @st.cache_resource(show_spinner="Searching Wikipedia...")
@@ -230,10 +285,16 @@ st.set_page_config(
     page_icon="🧐"
 )
 st.title("🧐 Quiz GPT")
+st.info("""
+I will make a quiz from Wikipedia articles of files you upload to test
+your knowledge and help you study. 
+
+Get started by uploading a file or searching on Wikipedia in the sidebar. 🔍
+""")
 
 with st.sidebar:
     choice = st.selectbox("Choose what you want to use.", (
-        "File", "Wikipedia Article",
+        "File", "Wikipedia Article", "Just a Word"
     ), )
 
     if choice == "File":
@@ -246,10 +307,18 @@ with st.sidebar:
         if topic:
             with st.status("Searching wikipedia"):
                 docs = search_wiki(topic)
+    elif choice == "Just a Word":
+        word = st.text_input("Input a word")
 
+response = None
 if docs:
     response = run_quiz_chain(docs, topic if topic else file.name)
+elif word:
+    response = run_quiz_simple_chain(word)
+
+if response is not None:
     with st.form("questions_form"):
+        st.write(response)
         for question in response["questions"]:
             st.write(question["question"])
             value = st.radio(
@@ -262,10 +331,3 @@ if docs:
             elif value is not None:
                 st.error("Wrong!")
         button = st.form_submit_button()
-else:
-    st.info("""
-    I will make a quiz from Wikipedia articles of files you upload to test
-    your knowledge and help you study. 
-    
-    Get started by uploading a file or searching on Wikipedia in the sidebar. 🔍
-    """)
