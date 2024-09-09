@@ -4,14 +4,11 @@
 import json
 import os
 from datetime import timedelta
-from typing import List
 
 import streamlit as st
 from langchain_community.document_loaders import TextLoader
 from langchain_community.retrievers import WikipediaRetriever
 from langchain_core.output_parsers import BaseOutputParser
-from langchain_core.output_parsers.base import T
-from langchain_core.outputs import Generation
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import CharacterTextSplitter
@@ -61,7 +58,7 @@ question_promopt = ChatPromptTemplate.from_messages([
     ("system", """
 You are a helpful assistant that is role playing as a teacher.
 
-Based ONLY on the following context make 10 questions to test the user's knowledge about the text.
+Based ONLY on the following context make 10 (TEN) questions minimum to test the user's knowledge about the text.
 
 Each question should have 4 answers, three of them must be incorrect and one should be correct.
 
@@ -213,6 +210,20 @@ formatting_chain = formatting_prompt | llm
 
 output_parser = JsonOutputParser()
 
+
+@st.cache_resource(show_spinner="Making quiz...")
+def run_quiz_chain(_docs, topic):
+    chain = {"context": question_chain} | formatting_chain | output_parser
+    return chain.invoke(_docs)
+
+
+@st.cache_resource(show_spinner="Searching Wikipedia...")
+def search_wiki(term):
+    retriever = WikipediaRetriever(top_k_results=5)
+    documents = retriever.get_relevant_documents(term)
+    return documents
+
+
 # views
 st.set_page_config(
     page_title="Quiz GPT",
@@ -232,16 +243,14 @@ with st.sidebar:
                 docs = split_files(file, ctx.session_id)
     elif choice == "Wikipedia Article":
         topic = st.text_input("Name of the article")
-        retriever = WikipediaRetriever(top_k_results=5)
         if topic:
             with st.status("Searching wikipedia"):
-                docs = retriever.get_relevant_documents(topic)
+                docs = search_wiki(topic)
 
 if docs:
     start = st.button("Generate Quiz")
     if start:
-        chain = {"context": question_chain} | formatting_chain | output_parser
-        response = chain.invoke(docs)
+        response = run_quiz_chain(docs, topic if topic else file.name)
         st.write(response)
 else:
     st.info("""
