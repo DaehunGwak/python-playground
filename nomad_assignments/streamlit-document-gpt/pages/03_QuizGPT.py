@@ -1,13 +1,17 @@
 """
 - model tokens comparison: https://platform.openai.com/docs/models/gpt-4o-mini
 """
-
+import json
 import os
 from datetime import timedelta
+from typing import List
 
 import streamlit as st
 from langchain_community.document_loaders import TextLoader
 from langchain_community.retrievers import WikipediaRetriever
+from langchain_core.output_parsers import BaseOutputParser
+from langchain_core.output_parsers.base import T
+from langchain_core.outputs import Generation
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import CharacterTextSplitter
@@ -37,6 +41,12 @@ def split_files(input_file, session_id):
 
 def format_docs(documents):
     return "\n\n".join(document.page_content for document in documents)
+
+
+class JsonOutputParser(BaseOutputParser):
+    def parse(self, text: str) -> dict:
+        text = text.replace("```", "").replace("json", "")
+        return json.loads(text)
 
 
 # states
@@ -201,6 +211,8 @@ formatting_prompt = ChatPromptTemplate.from_messages(
 )
 formatting_chain = formatting_prompt | llm
 
+output_parser = JsonOutputParser()
+
 # views
 st.set_page_config(
     page_title="Quiz GPT",
@@ -228,12 +240,9 @@ with st.sidebar:
 if docs:
     start = st.button("Generate Quiz")
     if start:
-        questions_response = question_chain.invoke(docs)
-        st.write(questions_response.content)
-        formatting_response = formatting_chain.invoke({
-            "context": questions_response.content
-        })
-        st.write(formatting_response.content)
+        chain = {"context": question_chain} | formatting_chain | output_parser
+        response = chain.invoke(docs)
+        st.write(response)
 else:
     st.info("""
     I will make a quiz from Wikipedia articles of files you upload to test
