@@ -3,7 +3,7 @@
   - blog: https://openai.com/index/introducing-gpts/
   - sitemap: https://openai.com/sitemap.xml > 보안 이슈로 막힌 듯?
   - 과제 sitemap: https://developers.cloudflare.com/sitemap-0.xml
-- trouble shooting
+- troubleshooting
   - python SSL: https://coinpipe.tistory.com/171
   - user-agent issue: `poetry add fake_useragent`
 """
@@ -13,19 +13,39 @@ import streamlit as st
 from fake_useragent import UserAgent
 from langchain_community.document_loaders import SitemapLoader
 from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 user_agent = UserAgent()
 
 
+def parse_page(soup):
+    header = soup.find("header")
+    footer = soup.find("footer")
+    if header:
+        header.decompose()
+    if footer:
+        footer.decompose()
+    return (
+        str(soup.get_text())
+        .replace("\n", " ")
+        .replace("\xa0", " ")
+    )
+
+
 @st.cache_resource(
-    show_spinner="Sitemap 분석은 시간이 오래걸리니 30분 정도 커피드시고 오시는건 어떨까요? ☕️",
+    show_spinner="Sitemap 분석은 시간이 오래걸리니 10분 정도 커피드시고 오시는건 어떨까요? ☕️",
     ttl=timedelta(hours=12),
 )
 def load_website(target_url: str) -> list[Document]:
-    loader = SitemapLoader(target_url)
-    loader.requests_per_second = 3
+    splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+        model_name="gpt-4o-mini",
+        chunk_size=1000,
+        chunk_overlap=200,
+    )
+    loader = SitemapLoader(target_url, parsing_function=parse_page)
+    loader.requests_per_second = 2
     loader.header = {'User-Agent': user_agent.random}
-    return loader.load()
+    return loader.load_and_split(text_splitter=splitter)
 
 
 st.set_page_config(
