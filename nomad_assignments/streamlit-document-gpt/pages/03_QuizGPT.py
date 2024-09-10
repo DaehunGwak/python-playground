@@ -1,0 +1,333 @@
+"""
+- model tokens comparison: https://platform.openai.com/docs/models/gpt-4o-mini
+"""
+import json
+import os
+from datetime import timedelta
+
+import streamlit as st
+from langchain_community.document_loaders import TextLoader
+from langchain_community.retrievers import WikipediaRetriever
+from langchain_core.output_parsers import BaseOutputParser
+from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+from langchain_openai import ChatOpenAI
+from langchain_text_splitters import CharacterTextSplitter
+from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
+
+
+@st.cache_resource(show_spinner="Separated file...", ttl=timedelta(hours=1))
+def split_files(input_file, session_id):
+    file_content = input_file.read()
+    file_path = f"./.cache/quiz_files/{session_id}"
+    file_full_path = f"{file_path}/{input_file.name}"
+
+    os.makedirs(file_path, exist_ok=True)
+
+    with open(file_full_path, "w") as target_file:
+        target_file.write(file_content.decode("utf-8"))
+
+    character_text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
+        model_name="gpt-4o-mini",
+        chunk_size=600,
+        chunk_overlap=100,
+        separator="\n",
+    )
+    loader = TextLoader(file_full_path)
+    return loader.load_and_split(text_splitter=character_text_splitter)
+
+
+def format_docs(documents):
+    return "\n\n".join(document.page_content for document in documents)
+
+
+class JsonOutputParser(BaseOutputParser):
+    def parse(self, text: str) -> dict:
+        text = text.replace("```", "").replace("json", "")
+        return json.loads(text)
+
+
+# states
+ctx = get_script_run_ctx()
+docs = None
+word = None
+
+llm_quiz_func = function = {
+    "name": "create_quiz",
+    "description": "function that takes a list of questions and answers and returns a quiz",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "questions": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "question": {
+                            "type": "string",
+                        },
+                        "answers": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "answer": {
+                                        "type": "string",
+                                    },
+                                    "correct": {
+                                        "type": "boolean",
+                                    },
+                                },
+                                "required": ["answer", "correct"],
+                            },
+                        },
+                    },
+                    "required": ["question", "answers"],
+                },
+            }
+        },
+        "required": ["questions"],
+    },
+}
+
+llm = ChatOpenAI(
+    model_name="gpt-4o-mini",
+    temperature=0.1,
+)
+
+llm_with_func_call = ChatOpenAI(
+    model_name="gpt-4o-mini",
+    temperature=0.1,
+).bind(
+    function_call={"name": "create_quiz"},
+    functions=[llm_quiz_func],
+)
+
+question_promopt = ChatPromptTemplate.from_messages([
+    ("system", """
+You are a helpful assistant that is role playing as a teacher.
+
+Based ONLY on the following context make 10 (TEN) questions minimum to test the user's knowledge about the text.
+
+Each question should have 4 answers, three of them must be incorrect and one should be correct.
+
+Use (o) to signal the correct answer.
+
+Question examples:
+
+Question: What is the color of the ocean?
+Answers: Red|Yellow|Green|Blue(o)
+
+Question: What is the capital or Georgia?
+Answers: Baku|Tbilisi(o)|Manila|Beirut
+
+Question: When was Avatar released?
+Answers: 2007|2001|2009(o)|1998
+
+Question: Who was Julius Caesar?
+Answers: A Roman Emperor(o)|Painter|Actor|Model
+
+Your turn!
+
+Context: {context}
+""")
+])
+question_chain = {"context": format_docs} | question_promopt | llm
+
+formatting_prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """
+    You are a powerful formatting algorithm.
+
+    You format exam questions into JSON format.
+    Answers with (o) are the correct ones.
+
+    Example Input:
+    Question: What is the color of the ocean?
+    Answers: Red|Yellow|Green|Blue(o)
+
+    Question: What is the capital or Georgia?
+    Answers: Baku|Tbilisi(o)|Manila|Beirut
+
+    Question: When was Avatar released?
+    Answers: 2007|2001|2009(o)|1998
+
+    Question: Who was Julius Caesar?
+    Answers: A Roman Emperor(o)|Painter|Actor|Model
+
+
+    Example Output:
+
+    ```json
+    {{ "questions": [
+            {{
+                "question": "What is the color of the ocean?",
+                "answers": [
+                        {{
+                            "answer": "Red",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Yellow",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Green",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Blue",
+                            "correct": true
+                        }},
+                ]
+            }},
+                        {{
+                "question": "What is the capital or Georgia?",
+                "answers": [
+                        {{
+                            "answer": "Baku",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Tbilisi",
+                            "correct": true
+                        }},
+                        {{
+                            "answer": "Manila",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Beirut",
+                            "correct": false
+                        }},
+                ]
+            }},
+                        {{
+                "question": "When was Avatar released?",
+                "answers": [
+                        {{
+                            "answer": "2007",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "2001",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "2009",
+                            "correct": true
+                        }},
+                        {{
+                            "answer": "1998",
+                            "correct": false
+                        }},
+                ]
+            }},
+            {{
+                "question": "Who was Julius Caesar?",
+                "answers": [
+                        {{
+                            "answer": "A Roman Emperor",
+                            "correct": true
+                        }},
+                        {{
+                            "answer": "Painter",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Actor",
+                            "correct": false
+                        }},
+                        {{
+                            "answer": "Model",
+                            "correct": false
+                        }},
+                ]
+            }}
+        ]
+     }}
+    ```
+    Your turn!
+    Questions: {context}
+""",
+        )
+    ]
+)
+formatting_chain = formatting_prompt | llm
+simple_prompt = PromptTemplate.from_template("Make a quiz about {topic}. the maximum number of quiz is 10 (TEN).")
+output_parser = JsonOutputParser()
+
+
+@st.cache_resource(show_spinner="Making quiz...")
+def run_quiz_chain(_docs, topic):
+    chain = {"context": question_chain} | formatting_chain | output_parser
+    return chain.invoke(_docs)
+
+
+@st.cache_resource(show_spinner="Making quiz...")
+def run_quiz_simple_chain(word):
+    chain = simple_prompt | llm_with_func_call
+    result = chain.invoke({"topic": word})
+    return json.loads(result.additional_kwargs["function_call"]["arguments"])
+
+
+@st.cache_resource(show_spinner="Searching Wikipedia...")
+def search_wiki(term):
+    retriever = WikipediaRetriever(top_k_results=5)
+    documents = retriever.get_relevant_documents(term)
+    return documents
+
+
+# views
+st.set_page_config(
+    page_title="Quiz GPT",
+    page_icon="🧐"
+)
+st.title("🧐 Quiz GPT")
+st.info("""
+I will make a quiz from Wikipedia articles of files you upload to test
+your knowledge and help you study. 
+
+Get started by uploading a file or searching on Wikipedia in the sidebar. 🔍
+""")
+
+with st.sidebar:
+    choice = st.selectbox("Choose what you want to use.", (
+        "File", "Wikipedia Article", "Just a Word"
+    ), )
+
+    if choice == "File":
+        file = st.file_uploader("Upload a .txt file", type=["txt"])
+        if file:
+            with st.status("Splitting the file"):
+                docs = split_files(file, ctx.session_id)
+    elif choice == "Wikipedia Article":
+        topic = st.text_input("Name of the article")
+        if topic:
+            with st.status("Searching wikipedia"):
+                docs = search_wiki(topic)
+    elif choice == "Just a Word":
+        word = st.text_input("Input a word")
+
+response = None
+if docs:
+    response = run_quiz_chain(docs, topic if topic else file.name)
+elif word:
+    response = run_quiz_simple_chain(word)
+
+if response is not None:
+    with st.form("questions_form"):
+        st.write(response)
+        for question in response["questions"]:
+            st.write(question["question"])
+            value = st.radio(
+                "Select an option.",
+                [answer["answer"] for answer in question["answers"]],
+                index=None,
+            )
+            if {"answer": value, "correct": True} in question["answers"]:
+                st.success("Correct!")
+            elif value is not None:
+                st.error("Wrong!")
+        button = st.form_submit_button()
