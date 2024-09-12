@@ -20,6 +20,9 @@ html2text = "^2024.2.26"
 lxml = "^5.3.0"
 fake-useragent = "^1.5.1"
 certifi = "^2024.8.30"
+faiss-cpu = "^1.8.0.post1"
+sentence-transformers = "^3.0.1"
+gpt4all = "^2.8.2"
 
 
 [build-system]
