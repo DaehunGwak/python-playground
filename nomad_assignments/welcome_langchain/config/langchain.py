@@ -10,5 +10,5 @@ def setup_langchain_openai_envs(path: str = "./"):
         keys = json.load(key_file)
 
     os.environ['LANGCHAIN_TRACING_V2'] = 'true'
-    os.environ['LANGCHAIN_API_KEY'] = keys['langchain-personal-key']
+    os.environ['LANGCHAIN_API_KEY'] = keys['langchains-personal-key']
     os.environ['OPENAI_API_KEY'] = keys['openai_note-key']
