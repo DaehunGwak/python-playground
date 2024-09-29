@@ -19,7 +19,11 @@ class TweetTest(TestCase):
             payload='test_tweet',
             user=self.user,
         )
+        Tweet.objects.create(
+            payload='test_tweet2',
+            user=self.user,
+        )
 
         results = Tweet.objects.filter(user=self.user)
         print(results)
-        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results), 2)

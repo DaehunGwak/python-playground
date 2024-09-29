@@ -18,3 +18,6 @@ class User(AbstractUser):
         choices=GenderChoices.choices,
         default=GenderChoices.UNKNOWN,
     )
+
+    class Meta:
+        db_table = 'users'
