@@ -6,7 +6,7 @@ from data_tweets.models import Tweet
 
 class Like(models.Model):
     user = models.ForeignKey(User, on_delete=models.DO_NOTHING)
-    tweet = models.ForeignKey(Tweet, on_delete=models.DO_NOTHING)
+    tweet = models.ForeignKey(Tweet, on_delete=models.DO_NOTHING, related_name='likes')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -9,6 +9,9 @@ class Tweet(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def likes_count(self):
+        return self.likes.count()
+
     def __str__(self):
         return (f"Tweet(payload={self.payload}, "
                 f"user.id={self.user.id}, "  # TODO: N+1
