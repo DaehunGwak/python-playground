@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from data_tweets.admin.filters.tweet_filters import TweetElonMuskFilter
 from data_tweets.models import Tweet
 
 
@@ -20,6 +21,15 @@ class TweetAdmin(admin.ModelAdmin):
                 "classes": ("wide",),
             },
         ),
+    )
+
+    list_filter = (
+        "created_at",
+        TweetElonMuskFilter,
+    )
+
+    search_fields = (
+        "user__username",
     )
 
     list_display = ('id', 'user', 'payload', 'likes_count', 'created_at')
