@@ -21,5 +21,13 @@ class LikeAdmin(admin.ModelAdmin):
         ),
     )
 
+    list_filter = (
+        "created_at",
+    )
+
+    search_fields = (
+        "user__username",
+    )
+
     list_display = ("id", "user", "tweet", "created_at")
     readonly_fields = ("id", "created_at", "updated_at")
