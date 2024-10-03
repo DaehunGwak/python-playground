@@ -23,7 +23,7 @@ def global_exception_handler(exc, context):
 
     response = exception_handler(exc, context)
 
-    if response is not None:
+    if response is None:
         return _server_error_handler(exc, context)
 
     _logger.error(f'Not Defined Error.\nexc: {exc.__class__}, {exc}\ncontext: {context}')
