@@ -17,6 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from api_main.views import template_tweets_view
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', template_tweets_view, name='template-tweets'),
 ]
