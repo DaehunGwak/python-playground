@@ -25,7 +25,9 @@ SECRET_KEY = 'django-insecure-8vhx2sk82fubr9b7a7+1k5q!b*hn9@zbr4nccqh9jbcsqr6-bs
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+]
 
 
 # Application definition
@@ -37,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
     'data_auth',
     'data_tweets',
 ]
@@ -108,7 +111,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Seoul'
 
 USE_I18N = True
 
@@ -144,3 +147,11 @@ LOGGING = {
         },
     },
 }
+
+REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'api_main.config.handler.exception_handler.global_exception_handler',
+}
+if DEBUG is False:
+    REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = (
+        'rest_framework.renderers.JSONRenderer',
+    )
